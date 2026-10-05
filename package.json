@@ -1,0 +1,17 @@
+{
+  "name": "shopee-ofertas",
+  "version": "1.0.0",
+  "description": "Painel para preparar ofertas de afiliados Shopee Brasil e compartilhar no WhatsApp",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "sharp": "^0.34.0"
+  }
+}

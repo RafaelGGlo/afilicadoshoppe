@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Ofertas Shopee</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topo">
+    <h1>Ofertas Shopee</h1>
+    <span id="badgeModo" class="badge" hidden></span>
+    <button id="btnSair" class="link" hidden>Sair</button>
+  </header>
+
+  <!-- Login -->
+  <main id="telaLogin" hidden>
+    <form id="formLogin" class="cartao estreito">
+      <h2>Entrar</h2>
+      <label>Senha do painel
+        <input type="password" id="senha" autocomplete="current-password" required>
+      </label>
+      <button class="primario" type="submit">Entrar</button>
+      <p id="erroLogin" class="erro" hidden></p>
+    </form>
+  </main>
+
+  <!-- Painel -->
+  <main id="telaPainel" hidden>
+    <div id="avisoDemo" class="aviso" hidden>
+      <strong>API sem credenciais:</strong> use o Cadastro manual para ofertas reais com seu link de afiliado.
+      A aba Buscar usa dados de demonstração, identificados como DEMO. Configure o <code>.env</code> quando a API for liberada.
+    </div>
+
+    <nav class="abas">
+      <button data-aba="ofertas" class="ativa">Ofertas</button>
+      <button data-aba="manual">Cadastro manual</button>
+      <button data-aba="buscar">Buscar</button>
+      <button data-aba="config">Configurações</button>
+      <button data-aba="historico">Histórico</button>
+    </nav>
+
+    <!-- Ofertas -->
+    <section id="aba-ofertas">
+      <div class="barra">
+        <select id="filtroStatus">
+          <option value="">Todas</option>
+          <option value="preparada">Preparadas</option>
+          <option value="revisao">Precisam de revisão</option>
+          <option value="publicada">Publicadas</option>
+          <option value="descartada">Descartadas</option>
+        </select>
+        <input id="filtroTexto" type="search" placeholder="Filtrar por nome">
+      </div>
+      <div id="listaOfertas" class="grade"></div>
+      <p id="vazioOfertas" class="mudo" hidden>Nenhuma oferta ainda. Vá em “Cadastro manual” ou “Buscar”.</p>
+    </section>
+
+    <section id="aba-manual" hidden>
+      <form id="formManual" class="cartao">
+        <h2 id="mTitulo">Cadastrar oferta manual</h2>
+        <p class="mudo">Preencha os dados do produto e cole o link que você gerou na Shopee. Não precisa de API.</p>
+        <label>Nome do produto<input id="mNome" required maxlength="200"></label>
+        <label>Meu link de afiliado da Shopee<input id="mLink" type="url" required maxlength="4096" placeholder="https://s.shopee.com.br/..."></label>
+        <div class="duas">
+          <label>Preço atual ou mínimo (R$)<input id="mMin" required inputmode="decimal" placeholder="99,90"></label>
+          <label>Preço máximo da faixa (opcional)<input id="mMax" inputmode="decimal" placeholder="Deixe vazio para preço único"></label>
+        </div>
+        <label>Preço anterior (opcional)<input id="mAnterior" inputmode="decimal"></label>
+        <label class="linha"><input id="mMesmaVariante" type="checkbox"> Confirmo que o preço anterior e o atual são da mesma variante</label>
+        <p class="mudo pequeno">Preço anterior e desconto aparecem somente com esta confirmação e preço único menor que o anterior. Faixas de preço não geram desconto.</p>
+        <label>Cupom (opcional)<input id="mCupom" maxlength="100"></label>
+        <label>Condições do cupom (opcional)<textarea id="mCondicoes" maxlength="500" rows="2"></textarea></label>
+        <label>Observações (opcional)<textarea id="mObs" maxlength="1000" rows="2"></textarea></label>
+        <label>Categoria<input id="mCategoria" required maxlength="100" list="categoriasManuais"></label>
+        <datalist id="categoriasManuais"><option value="Eletrônicos"><option value="Casa"><option value="Moda"><option value="Beleza"><option value="Outros"></datalist>
+        <label>Upload de imagem (JPG, PNG ou WebP, até 6 MB)<input id="mArquivo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <label>Ou URL HTTPS da imagem<input id="mImagemUrl" type="url" maxlength="4096"></label>
+        <p id="mImagemNota" class="mudo">Escolha upload ou URL. Imagens pequenas não são ampliadas e ficam para revisão.</p>
+        <div class="botoes"><button id="mPreparar" class="primario" type="submit">Preparar oferta</button><button id="mLimpar" type="button">Novo cadastro</button></div>
+        <p id="mMsg" role="status" class="mudo"></p>
+      </form>
+    </section>
+
+    <!-- Buscar -->
+    <section id="aba-buscar" hidden>
+      <form id="formBusca" class="cartao">
+        <label>Palavra-chave (deixe vazio para usar as das Configurações)
+          <input id="buscaKeyword" type="text" maxlength="80" placeholder="ex.: fone bluetooth">
+        </label>
+        <button class="primario" type="submit" id="btnBuscar">Buscar e preparar ofertas</button>
+        <p id="resBusca" class="mudo" hidden></p>
+      </form>
+    </section>
+
+    <!-- Configurações -->
+    <section id="aba-config" hidden>
+      <form id="formConfig" class="cartao">
+        <label>Palavras-chave (uma por linha)
+          <textarea id="cKeywords" rows="4"></textarea>
+        </label>
+        <label>IDs de categoria (opcional, separados por vírgula)
+          <input id="cCategorias" type="text">
+        </label>
+        <div class="duas">
+          <label>Preço mínimo (R$)<input id="cPrecoMin" type="number" min="0" step="0.01"></label>
+          <label>Preço máximo (R$)<input id="cPrecoMax" type="number" min="0" step="0.01"></label>
+        </div>
+        <div class="duas">
+          <label>Ordenar por
+            <select id="cSort">
+              <option value="1">Relevância</option>
+              <option value="2">Mais vendidos</option>
+              <option value="3">Maior preço</option>
+              <option value="4">Menor preço</option>
+              <option value="5">Maior comissão</option>
+            </select>
+          </label>
+          <label>Máx. de ofertas por consulta<input id="cMax" type="number" min="1" max="50"></label>
+        </div>
+        <div class="duas">
+          <label>Páginas por palavra-chave<input id="cPaginas" type="number" min="1" max="5"></label>
+          <label>Não repetir produto por (dias)<input id="cDedupe" type="number" min="0" max="365"></label>
+        </div>
+        <label>Sub IDs de rastreio (até 5, separados por vírgula)
+          <input id="cSubIds" type="text">
+        </label>
+        <fieldset>
+          <legend>Consulta automática</legend>
+          <label class="linha"><input type="checkbox" id="cAuto"> Ativar</label>
+          <label>A cada (minutos, mínimo 15)<input id="cAutoMin" type="number" min="15"></label>
+          <p class="mudo">Só funciona enquanto o programa (Node) estiver aberto no computador.</p>
+        </fieldset>
+        <label>Modelo da legenda — use {nome}, {preco}, {desconto}, {extras} e {link}
+          <textarea id="cTemplate" rows="8"></textarea>
+        </label>
+        <button class="primario" type="submit">Salvar configurações</button>
+        <p id="resConfig" class="mudo" hidden></p>
+      </form>
+    </section>
+
+    <!-- Histórico -->
+    <section id="aba-historico" hidden>
+      <div class="cartao"><ul id="listaHistorico" class="historico"></ul></div>
+    </section>
+  </main>
+
+  <!-- Prévia / edição -->
+  <dialog id="dlg">
+    <div class="dlg-corpo">
+      <div class="dlg-topo">
+        <h2 id="dNome"></h2>
+        <button id="dFechar" class="link" aria-label="Fechar">✕</button>
+      </div>
+      <p id="dStatus" class="mudo"></p>
+      <p id="dRevisao" class="aviso" hidden></p>
+      <div class="previa">
+        <div class="img-box">
+          <img id="dImg" alt="Imagem do produto" hidden>
+          <p id="dSemImg" class="mudo" hidden>Sem imagem adequada.</p>
+        </div>
+        <div class="txt-box">
+          <label>Legenda (editável)
+            <textarea id="dLegenda" rows="8"></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="acoes-previa">
+        <button id="bCompartilhar" class="primario">Compartilhar foto e legenda</button>
+        <div class="alternativas-previa">
+          <button id="bCopiar" class="link">Copiar legenda</button>
+          <button id="bBaixar" class="link">Baixar imagem</button>
+        </div>
+      </div>
+      <div id="dConfirma" class="confirmacao-previa" hidden>
+        Você publicou a foto com a legenda no WhatsApp?
+        <div class="botoes">
+          <button id="bSim">Sim, marcar como publicada</button>
+          <button id="bNao">Ainda não</button>
+        </div>
+      </div>
+      <p id="dMsg" class="mudo pequeno" role="status" hidden></p>
+      <details id="dOpcoes" class="opcoes-previa">
+        <summary>Mais opções</summary>
+        <div class="botoes">
+          <button id="bSalvar">Salvar legenda</button>
+          <button id="bModelo">Refazer pelo modelo</button>
+          <button id="bAtualizar">Atualizar dados</button>
+          <button id="bEditar">Editar dados</button>
+          <button id="bDuplicar">Duplicar oferta</button>
+        </div>
+        <label class="botao">Substituir imagem
+          <input type="file" id="dArquivo" accept="image/jpeg,image/png,image/webp" hidden>
+        </label>
+        <label>Alterar status manualmente
+          <select id="dMudarStatus">
+            <option value="">Escolha um status</option>
+            <option value="preparada">Preparada</option>
+            <option value="revisao">Precisa de revisão</option>
+            <option value="publicada">Publicada (já enviei)</option>
+            <option value="descartada">Descartada</option>
+          </select>
+        </label>
+        <p id="dImgNota" class="mudo pequeno"></p>
+        <p id="dFonte" class="mudo pequeno"></p>
+      </details>
+    </div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
