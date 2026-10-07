@@ -1,5 +1,21 @@
 # Painel de Ofertas Shopee → WhatsApp
 
+## Bot automático de WhatsApp
+
+O bot automático está em [`whatsapp-bot/`](whatsapp-bot/README.md), separado do painel web. Ele busca ofertas com desconto informado pela API da Shopee, de todas as categorias, sem mínimo de vendas, e envia foto, legenda e link de afiliado aos grupos configurados.
+
+Para executá-lo no Windows:
+
+```powershell
+cd whatsapp-bot
+Copy-Item .env.example .env
+npm.cmd ci
+# Preencha .env com as credenciais da Shopee e os IDs dos grupos.
+npm.cmd start
+```
+
+O bot precisa permanecer ligado. Ctrl+C interrompe os envios. Não execute mais de uma instância na mesma pasta. A sessão, as credenciais e o histórico local não fazem parte do repositório.
+
 ## Cadastro manual — funciona sem credenciais da API
 
 O painel agora permite preparar ofertas reais enquanto o acesso à API está pendente, mantendo Express, SQLite, Sharp e a interface existentes. As ofertas **Manual**, **API** e **DEMO** usam a mesma lista e prévia; os dados simulados continuam identificados como DEMO.

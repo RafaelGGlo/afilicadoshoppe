@@ -1,0 +1,25 @@
+[
+  {
+    "id": "shopee:SHOP_ID:ITEM_ID",
+    "platform": "shopee",
+    "title": "Nome do produto",
+    "price": 54.99,
+    "oldPrice": 79.9,
+    "productUrl": "https://shopee.com.br/produto-i.SHOP_ID.ITEM_ID",
+    "affiliateUrl": "",
+    "imageUrl": "https://YOUR_IMAGE_HOST/product.jpg",
+    "coupon": "CUPOM",
+    "active": true,
+    "expiresAt": "2030-01-01T00:00:00Z"
+  },
+  {
+    "id": "ml:MLB_PRODUCT_ID",
+    "platform": "ml",
+    "title": "Produto Mercado Livre",
+    "price": 120,
+    "productUrl": "https://produto.mercadolivre.com.br/MLB-PRODUCT_ID",
+    "affiliateUrl": "https://mercadolivre.com/sec/YOUR_REAL_AFFILIATE_LINK",
+    "imageUrl": "https://YOUR_IMAGE_HOST/product.jpg",
+    "active": false
+  }
+]

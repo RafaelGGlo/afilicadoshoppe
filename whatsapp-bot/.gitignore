@@ -1,0 +1,13 @@
+node_modules/
+.env
+auth_info/
+sent_deals.json*
+*.lock
+auth_info.backup-*/
+.browser-test/
+bot-*.log
+
+.env.*
+!.env.example
+.publish-repo/
+deals.previous-test.json
