@@ -173,3 +173,8 @@ Consultas à Shopee fazem no máximo três tentativas para timeout, falhas trans
 O exemplo .env.example usa buscas a cada minuto, todas as categorias, desconto confirmado e zero mínimo de vendas. O intervalo entre tentativas de envio permanece de 10 a 15 minutos. Credenciais, sessão, controles e históricos ficam fora do Git.
 
 Validação: três testes por melhoria (12 novos), além dos 31 testes anteriores. Todos usam simulações e relógios controlados; nenhuma mensagem real é enviada.
+
+
+### Legendas curtas
+
+Mensagens reais não exibem cabeçalho de campanha nem emojis decorativos. O nome aparece em negrito e é limitado a 120 caracteres, cortando em uma palavra quando possível. O preço real, um preço anterior explicitamente informado, cupons e o link original são preservados. Nenhuma condição de Pix é inventada. Mensagens de teste continuam identificadas como fictícias.
