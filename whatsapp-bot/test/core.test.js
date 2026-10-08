@@ -73,14 +73,14 @@ test('dead image and fake image bytes rejected',async()=>{
 test('format handles price and coupon without accidental WhatsApp markup',()=>{
  const result=formatDeal({platform:'ml',title:'*Product*',price:54.99,oldPrice:60,coupon:'ABC'},'https://mercadolivre.com/sec/x');
  assert.match(result,/54,99/);assert.match(result,/Cupom: \*ABC\*/);
- assert.match(result,/^Product\n\nDe ~R\$\s*60,00~ por \*R\$\s*54,99\*/);
+ assert.match(result,/^\*Product\*\n\nDe ~R\$\s*60,00~ por \*R\$\s*54,99\*/);
  assert.ok(result.endsWith('\n\nhttps://mercadolivre.com/sec/x'));
  assert.doesNotMatch(result,/Preço e disponibilidade|Link de afiliado|posso receber comissão|Compre aqui/);
  assert.throws(()=>formatDeal({title:'x',price:NaN},'x'));
 });
 
-test('caption includes campaign headline and minimum price without inventing a former price', () => {
+test('caption omits campaign headline and keeps minimum price without inventing a former price', () => {
  const result = formatDeal({ platform: 'shopee', headline: 'RADAR SHOPP', title: 'Fone Bluetooth', price: 38, fromPrice: true }, 'https://s.shopee.com.br/abc');
- assert.match(result, /^\*RADAR SHOPP\*\n\nFone Bluetooth\n\nMenor preço:/);
+ assert.match(result, /^\*Fone Bluetooth\*\n\nMenor preço:/);
  assert.doesNotMatch(result, /A partir de|De ~|comissão/);
 });

@@ -11,6 +11,9 @@ import { createShopeeSource } from './shopee-offers.js';
 import { matchesOfferFilter, assertSupportedOfferMode, matchesSalesFilter } from './offer-filter.js';
 import { BotReport } from './report.js';
 import { startDashboard } from './dashboard-server.js';
+import { matchesOfferFilters, DEFAULT_OFFER_FILTERS } from '../dashboard/filters.js';
+import { snapshotOfferFilters } from './search-snapshot.js';
+import { requestBotStop } from './dashboard-stop.js';
 import { BotControl } from './control.js';
 import { acquireLock } from './bot-lock.js';
 
@@ -22,20 +25,23 @@ function release() { owner.release(); }
 try {
  const store = new SentStore('./sent_deals.json', config.ttlMs);
  const isDealSentToGroup = (id, group) => store.isDealSentToGroup(id, group);
- const searchShopee = createShopeeSource();
+ let searchShopee = createShopeeSource(), sourceFilterKey = null;
  const cooldown = new OfferCooldown('./failed_deals.json', config.failedOfferCooldownMs);
- const control = new BotControl('./bot_control.json', { minMinutes: config.sendIntervalMinMs / 60000, maxMinutes: config.sendIntervalMaxMs / 60000 });
+ const control = new BotControl('./bot_control.json', { minMinutes: config.sendIntervalMinMs / 60000, maxMinutes: config.sendIntervalMaxMs / 60000, offerFilters: { ...DEFAULT_OFFER_FILTERS, minSales: config.shopeeMinSales, categories: config.shopeeCategoryIds } });
  const pacing = new SendPacing('./send_schedule.json', { minMs: control.data.minMinutes * 60000, maxMs: control.data.maxMinutes * 60000 });
  report = new BotReport('./bot_report.json', { settings: { searchInterval: config.interval,
   sendMinMinutes: config.sendIntervalMinMs / 60000, sendMaxMinutes: config.sendIntervalMaxMs / 60000,
   dedupHours: config.ttlMs / 3600000, minSales: config.shopeeMinSales, allCategories: config.shopeeCategoryIds.length === 0,
   timezone: config.timezone, groupCount: config.groups.length }, onError: () => logger.warn('Could not save dashboard report') });
  const due = pacing.canSend.bind(pacing);
- pacing.canSend = () => !control.data.paused && due();
+ pacing.canSend = () => !stopping && !control.data.paused && due();
  function syncControl() {
   const data = control.reload();
+  const key = JSON.stringify({ categories: data.offerFilters.categories, minSales: data.offerFilters.minSales });
+  if (sourceFilterKey !== key) { searchShopee = createShopeeSource({ env: { ...process.env, SHOPEE_CATEGORY_IDS: data.offerFilters.categories.join(','), SHOPEE_MIN_SALES: String(data.offerFilters.minSales) }, randomize: data.offerFilters.categories.length === 0 }); sourceFilterKey = key; }
   pacing.configure(data.minMinutes * 60000, data.maxMinutes * 60000);
-  report.data.control = { paused: data.paused, minMinutes: data.minMinutes, maxMinutes: data.maxMinutes };
+  report.data.control = { paused: data.paused, minMinutes: data.minMinutes, maxMinutes: data.maxMinutes, offerFilters: data.offerFilters };
+  report.data.settings.allCategories = data.offerFilters.categories.length === 0; report.data.settings.minSales = data.offerFilters.minSales;
   report.data.settings.sendMinMinutes = data.minMinutes; report.data.settings.sendMaxMinutes = data.maxMinutes;
   report.data.nextSearchAt = task?.getNextRun()?.getTime() ?? null;
   report.heartbeat(pacing.nextAllowedAt);
@@ -44,7 +50,7 @@ try {
  syncControl();
  heartbeat = setInterval(() => { try { syncControl(); } catch { control.data.paused = true; report.state('control_error'); logger.error('Control update failed; new sends paused'); } }, 1000);
  if (config.dashboardEnabled) {
-  try { dashboard = await startDashboard({ port: config.dashboardPort, getReport: () => report.snapshot(), onControl: patch => { const data = control.update(patch); syncControl(); return { paused: data.paused, minMinutes: data.minMinutes, maxMinutes: data.maxMinutes }; } }); logger.info({ url: dashboard.url }, 'Painel de relatórios disponível'); }
+  try { dashboard = await startDashboard({ port: config.dashboardPort, getReport: () => ({ ...report.snapshot(), botRunning: !stopping, botStopping: stopping }), onStop: () => requestBotStop({ lockFile: lock, control }), onControl: patch => { const data = control.update(patch); syncControl(); return { paused: data.paused, minMinutes: data.minMinutes, maxMinutes: data.maxMinutes }; } }); logger.info({ url: dashboard.url }, 'Painel de relatórios disponível'); }
   catch (error) { logger.warn({ reason: error.code || error.name, port: config.dashboardPort }, 'Dashboard unavailable; bot will continue'); }
  }
  let startupPending = config.runOnStart;
@@ -56,7 +62,9 @@ try {
    if (!client.getSocket()) { report.state('disconnected', pacing.nextAllowedAt); return; }
    syncControl();
    if (stopping) return;
+   const cycleFilters = snapshotOfferFilters(control.data.offerFilters), cycleSource = searchShopee;
    report.beginCycle();
+   report.data.activeSearchCategories = [...cycleFilters.categories];
    let outcome = 'idle';
    try {
     try { assertSupportedOfferMode(config.shopeeOfferMode); }
@@ -65,8 +73,8 @@ try {
     let deals = [];
     if (config.shopeeAutoSearch) {
      try {
-      deals = await searchShopee({ limit: config.maxDealsPerCycle, isDeferred: id => cooldown.isDeferred(id),
-       isAlreadySent: id => config.groups.every(group => isDealSentToGroup(id, group)), onSearchSummary: stats => report.search(stats) });
+      deals = await cycleSource({ limit: config.maxDealsPerCycle, isDeferred: id => cooldown.isDeferred(id),
+       isAlreadySent: id => config.groups.every(group => isDealSentToGroup(id, group)), onSearchSummary: stats => report.search(stats), matchesExtraFilters: deal => matchesOfferFilters(deal, cycleFilters) });
       report.data.lastError = null;
       logger.info({ offers: deals.length }, 'Shopee automatic search completed');
      } catch (error) { outcome = 'error'; report.data.lastError = error.code || 'SHOPEE_QUERY'; logger.error({ reason: error.code || error.name }, 'Shopee automatic search failed'); }
@@ -84,8 +92,8 @@ try {
      if (stopping || processed >= config.maxDealsPerCycle || !pacing.canSend()) break;
      try {
       if (raw.active === false) continue;
-      if (!matchesOfferFilter(raw, config.shopeeCategoryIds)) continue;
-      if (!matchesSalesFilter(raw.sales, config.shopeeMinSales)) continue;
+      if (!matchesOfferFilter(raw, cycleFilters.categories) || !matchesOfferFilters(raw, cycleFilters)) continue;
+      if (!matchesSalesFilter(raw.sales, cycleFilters.minSales)) continue;
       if (raw.expiresAt && (!Number.isFinite(Date.parse(raw.expiresAt)) || Date.parse(raw.expiresAt) <= Date.now())) continue;
       const deal = { ...raw, id: raw.id || raw.productUrl };
       if (typeof deal.id !== 'string' || !deal.id.trim()) throw Error('Stable id or productUrl required');
@@ -117,7 +125,7 @@ try {
  logger.info({ interval: config.interval, maxDealsPerCycle: config.maxDealsPerCycle, runOnStart: config.runOnStart }, 'Scheduler started');
  async function shutdown() {
    if (stopping) return;
-   stopping = true; task?.stop(); clearInterval(heartbeat);
+   stopping = true; report.state('stopping'); task?.stop(); clearInterval(heartbeat);
    await client.stop(); await running; report.stop(); await dashboard?.stop(); release();
  }
  process.once('SIGINT', () => void shutdown()); process.once('SIGTERM', () => void shutdown());

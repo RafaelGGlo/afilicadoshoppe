@@ -173,3 +173,25 @@ Consultas à Shopee fazem no máximo três tentativas para timeout, falhas trans
 O exemplo .env.example usa buscas a cada minuto, todas as categorias, desconto confirmado e zero mínimo de vendas. O intervalo entre tentativas de envio permanece de 10 a 15 minutos. Credenciais, sessão, controles e históricos ficam fora do Git.
 
 Validação: três testes por melhoria (12 novos), além dos 31 testes anteriores. Todos usam simulações e relógios controlados; nenhuma mensagem real é enviada.
+
+
+### Legendas curtas
+
+Mensagens reais não exibem cabeçalho de campanha nem emojis decorativos. O nome aparece em negrito e é limitado a 120 caracteres, cortando em uma palavra quando possível. O preço real, um preço anterior explicitamente informado, cupons e o link original são preservados. Nenhuma condição de Pix é inventada. Mensagens de teste continuam identificadas como fictícias.
+
+### Botão PARAR e filtros no painel
+
+PARAR BOT solicita encerramento completo: bloqueia novas tentativas, para o agendamento e fecha a conexão do WhatsApp. Uma mensagem em andamento pode concluir. Pausar envios é diferente: mantém as buscas e permite retomar pelo painel. Para iniciar novamente após parar, use npm.cmd run bot:start. O painel separado (npm.cmd run dashboard) permanece acessível após a parada; se estiver usando apenas o servidor integrado, execute o painel separado para continuar consultando o relatório.
+
+Filtros das ofertas enviadas: preço mínimo/máximo, desconto mínimo confirmado pela API, mínimo de vendas, categorias conhecidas de eletrônicos/celulares/computadores/jogos/câmeras e palavras para incluir/excluir. Nenhuma categoria marcada permite todas. Palavras são separadas por vírgula; basta uma palavra de inclusão, enquanto qualquer palavra de exclusão rejeita a oferta. Campos vazios e limites zero não restringem. O botão Limpar remove todas as restrições adicionais, mantendo o modo de ofertas com desconto confirmado. Filtros são salvos em bot_control.json e persistem após reiniciar. Eles não antecipam a próxima janela de envio.
+
+Mais filtros do histórico: resultado, período, grupo, faixa de preço, data inicial/final, texto e ordenação por horário/preço. Esses filtros afetam somente a tabela; os indicadores acumulados continuam gerais. Hoje considera o fuso configurado do bot; datas personalizadas usam o horário local do navegador. A pesquisa alcança os últimos 200 eventos registrados. As duas áreas de filtros ficam recolhidas para manter a página limpa.
+
+Validação desta melhoria: três testes de encerramento, três testes de filtros e conferência dos controles em navegador isolado. Testes automatizados não enviam mensagens reais.
+
+
+### Categoria da próxima busca e modo TUDO
+
+O seletor visível de categoria salva a próxima seleção imediatamente, sem editar o .env. A seleção TUDO consulta todas as categorias e embaralha os produtos de cada resposta da API antes de selecionar uma oferta elegível. A busca avança para outras páginas quando disponíveis; isso diversifica os resultados, sem prometer uma amostra uniforme de todo o catálogo da Shopee. Os demais filtros adicionais continuam sendo respeitados.
+
+Cada ciclo captura seus filtros ao começar. Se a categoria mudar durante uma busca ou preparação, esse ciclo pode concluir com os filtros antigos. O novo filtro vale a partir da próxima busca. Pausa e PARAR continuam bloqueando novas tentativas imediatamente, independentemente dessa seleção. O intervalo entre mensagens permanece preservado.
