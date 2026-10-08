@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import { readReport } from './report.js';
+import { botRuntime, requestBotStop } from './dashboard-stop.js';
+import { DEFAULT_OFFER_FILTERS } from '../dashboard/filters.js';
+import { configuredMinSales, configuredCategories } from './offer-filter.js';
 import { BotControl } from './control.js';
 import { startDashboard } from './dashboard-server.js';
 const port = Number(process.env.DASHBOARD_PORT || 3210);
 if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw Error('Invalid DASHBOARD_PORT');
-const control = new BotControl('./bot_control.json', { minMinutes: Number(process.env.SEND_INTERVAL_MIN_MINUTES || 10), maxMinutes: Number(process.env.SEND_INTERVAL_MAX_MINUTES || 15) });
-const dashboard = await startDashboard({ port, getReport: () => { const { paused, minMinutes, maxMinutes } = control.reload(); return { ...readReport('./bot_report.json'), control: { paused, minMinutes, maxMinutes } }; }, onControl: patch => { const { paused, minMinutes, maxMinutes } = control.update(patch); return { paused, minMinutes, maxMinutes }; } });
+const control = new BotControl('./bot_control.json', { minMinutes: Number(process.env.SEND_INTERVAL_MIN_MINUTES || 10), maxMinutes: Number(process.env.SEND_INTERVAL_MAX_MINUTES || 15), offerFilters: { ...DEFAULT_OFFER_FILTERS, minSales: configuredMinSales(), categories: configuredCategories() } });
+const dashboard = await startDashboard({ port, getReport: () => { const { paused, minMinutes, maxMinutes, offerFilters } = control.reload(); const runtime = botRuntime('./bot.lock'); return { ...readReport('./bot_report.json'), botRunning: runtime.running, botStopping: runtime.running && control.data.stopToken === runtime.token, control: { paused, minMinutes, maxMinutes, offerFilters } }; }, onStop: () => requestBotStop({ lockFile: './bot.lock', control }), onControl: patch => { const { paused, minMinutes, maxMinutes, offerFilters } = control.update(patch); return { paused, minMinutes, maxMinutes, offerFilters }; } });
 console.log('Painel de relatórios: ' + dashboard.url);
 console.log('Este comando abre somente o painel e não inicia envios.');
 process.once('SIGINT', () => { void dashboard.stop(); });

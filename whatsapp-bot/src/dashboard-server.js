@@ -4,8 +4,8 @@ import path from 'node:path';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 const directory = fileURLToPath(new URL('../dashboard/', import.meta.url));
-const assets = new Map([['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']]]);
-export async function startDashboard({ getReport, port = 3210, now = Date.now, onControl } = {}) {
+const assets = new Map([['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']], ['/filters.js', ['filters.js', 'text/javascript; charset=utf-8']]]);
+export async function startDashboard({ getReport, port = 3210, now = Date.now, onControl, onStop } = {}) {
  const controlToken = randomBytes(32).toString('hex');
  const server = http.createServer(async (request, response) => {
   response.setHeader('X-Content-Type-Options', 'nosniff'); response.setHeader('Referrer-Policy', 'no-referrer'); response.setHeader('Cache-Control', 'no-store');
@@ -14,20 +14,20 @@ export async function startDashboard({ getReport, port = 3210, now = Date.now, o
   if (!['127.0.0.1:' + activePort, 'localhost:' + activePort].includes(request.headers.host)) { response.writeHead(403); response.end('Acesso local necessário.'); return; }
   try {
    const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
-   if (pathname === '/api/control' && request.method === 'POST' && onControl) {
+   if (request.method === 'POST' && ((pathname === '/api/control' && onControl) || (pathname === '/api/stop' && onStop))) {
     const supplied = Buffer.from(String(request.headers['x-control-token'] || ''));
     if (request.headers.origin !== 'http://' + request.headers.host || supplied.length !== controlToken.length || !timingSafeEqual(supplied, Buffer.from(controlToken))) { response.writeHead(403); response.end(); return; }
     let body = '', size = 0;
     for await (const chunk of request) { size += chunk.length; if (size > 4096) { response.writeHead(413); response.end(); return; } body += chunk.toString(); }
     let result;
-    try { const patch = JSON.parse(body); if (!patch || Array.isArray(patch) || typeof patch !== 'object') throw Error(); result = await onControl(patch); }
+    try { const patch = JSON.parse(body); if (!patch || Array.isArray(patch) || typeof patch !== 'object') throw Error(); if (pathname === '/api/stop') { if (Object.keys(patch).length) throw Error(); result = await onStop(); } else result = await onControl(patch); }
     catch (error) { response.writeHead(400, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ error: 'Não foi possível aplicar. Confira os valores e o arquivo de controle.' })); return; }
     response.writeHead(200, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(result)); return;
    }
    if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405, { Allow: 'GET, HEAD' }); response.end(); return; }
    if (pathname === '/api/report') {
     const report = await getReport();
-    const payload = JSON.stringify({ ...report, serverTime: now(), stale: report.heartbeatAt ? now() - report.heartbeatAt > 30000 : false, controlsEnabled: Boolean(onControl), ...(onControl ? { controlToken } : {}) });
+    const payload = JSON.stringify({ ...report, serverTime: now(), stale: report.heartbeatAt ? now() - report.heartbeatAt > 30000 : false, controlsEnabled: Boolean(onControl), stopEnabled: Boolean(onStop), ...((onControl || onStop) ? { controlToken } : {}) });
     response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(request.method === 'HEAD' ? undefined : payload); return;
    }
    if (!assets.has(pathname)) { response.writeHead(404); response.end(); return; }

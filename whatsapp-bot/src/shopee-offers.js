@@ -1,13 +1,14 @@
+import { randomInt } from 'node:crypto';
 import { shopeeQuery } from './shopee-api.js';
 import { marketplaceUrl } from './affiliates.js';
 import { configuredCategories, matchesOfferFilter, configuredOfferMode, assertSupportedOfferMode, hasApiDiscount, configuredMinSales, matchesSalesFilter } from './offer-filter.js';
 import { searchCounters } from './report.js';
 
-export function createShopeeSource({ env = process.env, request = fetch, pageSize = 30, maxPages = 5 } = {}) {
+export function createShopeeSource({ env = process.env, request = fetch, pageSize = 30, maxPages = 5, randomize = false, pickIndex = randomInt } = {}) {
  const categories = configuredCategories(env), offerMode = configuredOfferMode(env), minimumSales = configuredMinSales(env);
  const searches = categories.length ? categories : [null], pages = searches.map(() => 1);
  let categoryIndex = 0;
- return async function searchOffers({ limit = 1, isAlreadySent = () => false, isDeferred = () => false, onSearchSummary = () => {} } = {}) {
+ return async function searchOffers({ limit = 1, isAlreadySent = () => false, isDeferred = () => false, onSearchSummary = () => {}, matchesExtraFilters = () => true } = {}) {
   assertSupportedOfferMode(offerMode);
   const deals = [], seen = new Set(), stats = searchCounters();
   try {
@@ -21,7 +22,13 @@ export function createShopeeSource({ env = process.env, request = fetch, pageSiz
     stats.pages++; stats.consulted += result.nodes.length;
     pages[searchIndex] = result.pageInfo.hasNextPage ? page + 1 : 1;
     categoryIndex = (categoryIndex + 1) % searches.length;
-    for (const product of result.nodes) {
+    const products = [...result.nodes];
+    if (randomize) for (let index = products.length - 1; index > 0; index--) {
+     const other = pickIndex(0,index+1);
+     if (!Number.isSafeInteger(other) || other < 0 || other > index) throw Error('Invalid random product index');
+     [products[index],products[other]] = [products[other],products[index]];
+    }
+    for (const product of products) {
      stats.evaluated++;
      const id = 'shopee:' + product.shopId + ':' + product.itemId;
      if (seen.has(id)) { stats.duplicate++; continue; }
@@ -41,9 +48,9 @@ export function createShopeeSource({ env = process.env, request = fetch, pageSiz
        sales: product.sales !== null && product.sales !== undefined && /^\d+$/.test(String(product.sales)) && Number.isSafeInteger(Number(product.sales)) ? Number(product.sales) : undefined,
        categoryIds: product.productCatIds, headline: env.OFFER_HEADLINE || '',
        productUrl: marketplaceUrl(product.productLink, 'shopee'), affiliateUrl: marketplaceUrl(product.offerLink, 'shopee'), imageUrl: image.href, active: true };
-      if (!matchesOfferFilter(deal, categories)) { stats.filtered++; continue; }
+      if (!matchesOfferFilter(deal, categories) || !matchesExtraFilters(deal)) { stats.filtered++; continue; }
       stats.valid++; deals.push(deal); seen.add(id);
-      if (deals.length >= limit) { pages[searchIndex] = page; return deals; }
+      if (deals.length >= limit) { if (!randomize) pages[searchIndex] = page; return deals; }
      } catch { stats.invalid++; }
     }
     if (!result.pageInfo.hasNextPage && searches.length === 1) break;
