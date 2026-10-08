@@ -1,6 +1,6 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
-export async function connectWhatsApp(logger, onReady) {
+export async function connectWhatsApp(logger, onReady, onState = () => {}) {
  const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
  let current, ready = false, stopped = false, timer, attempts = 0;
  let writes = Promise.resolve();
@@ -15,9 +15,9 @@ export async function connectWhatsApp(logger, onReady) {
    sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
      if (stopped || current !== sock) return;
      if (qr) qrcode.generate(qr, { small: true });
-     if (connection === 'open') { ready = true; attempts = 0; logger.info('WhatsApp connected'); onReady?.(); }
+     if (connection === 'open') { onState('online'); ready = true; attempts = 0; logger.info('WhatsApp connected'); onReady?.(); }
      if (connection === 'close') {
-       ready = false;
+       onState('offline'); ready = false;
        const code = lastDisconnect?.error?.output?.statusCode;
        if ([DisconnectReason.loggedOut, DisconnectReason.badSession, DisconnectReason.connectionReplaced, DisconnectReason.forbidden, DisconnectReason.multideviceMismatch].includes(code)) {
          stopped = true; logger.error({ code }, 'Connection stopped; inspect session/account before restart'); return;
@@ -34,5 +34,5 @@ export async function connectWhatsApp(logger, onReady) {
  }
  await open();
  return { getSocket: () => ready && !stopped ? current : null,
-   stop: async () => { stopped = true; ready = false; clearTimeout(timer); current?.end(Error('Shutdown')); await writes; } };
+   stop: async () => { stopped = true; ready = false; clearTimeout(timer); current?.end(Error('Shutdown')); await writes; onState('offline'); } };
 }

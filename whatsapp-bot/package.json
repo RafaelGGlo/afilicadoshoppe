@@ -11,7 +11,11 @@
     "send-csv-test": "node src/send-csv-test.js",
     "start": "node src/index.js",
     "test": "node --test test/*.test.js",
-    "check": "node --check src/index.js"
+    "check": "node --check src/index.js",
+    "dashboard": "node src/dashboard.js",
+    "bot:start": "node src/bot-cli.js start",
+    "bot:stop": "node src/bot-cli.js stop",
+    "bot:status": "node src/bot-cli.js status"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "7.0.0-rc14",
