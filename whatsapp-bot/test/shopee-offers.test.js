@@ -35,7 +35,7 @@ test('invalid products and API failures never produce offers', async () => {
     { ...product(3), imageUrl: 'http://example.com/image' }, product(4), product(4),
   ]) });
   assert.deepEqual((await source({ limit: 10 })).map(deal => deal.id), ['shopee:99:4']);
-  await assert.rejects(createShopeeSource({ env, request: async () => ({ ok: true, json: async () => ({ errors: [{ message: 'remote secret' }] }) }) })(), /Shopee query failed/);
+  await assert.rejects(createShopeeSource({ env, request: async () => ({ ok: true, json: async () => ({ errors: [{ message: 'remote secret' }] }) }) })(), { code: 'SHOPEE_AUTH' });
 });
 
 test('electronics search sends API category filters and rejects wrong categories and passive accessories', async () => {

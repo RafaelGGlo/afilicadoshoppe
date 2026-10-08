@@ -6,8 +6,11 @@ sent_deals.json*
 auth_info.backup-*/
 .browser-test/
 bot-*.log
+failed_deals.json*
+send_schedule.json*
+bot_report.json*
+dashboard-*.log
+.dashboard-preview/
 
-.env.*
-!.env.example
-.publish-repo/
-deals.previous-test.json
+bot_control.json*
+bot.lock.guard/

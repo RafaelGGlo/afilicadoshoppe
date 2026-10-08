@@ -1,0 +1,63 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import { BotReport, readReport, emptyReport } from '../src/report.js';
+import { startDashboard } from '../src/dashboard-server.js';
+import { createShopeeSource } from '../src/shopee-offers.js';
+import { createBroadcaster } from '../src/broadcast.js';
+import { SentStore } from '../src/store.js';
+function fixture(t) {
+ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashboard-report-'));
+ t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+ let time = 100000;
+ const file = path.join(dir, 'report.json');
+ const report = new BotReport(file, { now: () => time, settings: { groupCount: 2, password: 'SECRET', groups: ['PRIVATE'] } });
+ return { dir, file, report, advance: ms => { time += ms; }, now: () => time };
+}
+const product = { shopId: 1, itemId: 2, productName: 'Fone', priceMin: 30, priceMax: 60, priceDiscountRate: 50, sales: 10, productLink: 'https://shopee.com.br/product/1/2', offerLink: 'https://s.shopee.com.br/abc', imageUrl: 'https://example.com/image.jpg' };
+const source = nodes => createShopeeSource({ env: { SHOPEE_APP_ID: '123', SHOPEE_SECRET: 'fake', SHOPEE_OFFER_MODE: 'discount-only' }, request: async () => ({ ok: true, json: async () => ({ data: { productOfferV2: { nodes, pageInfo: { hasNextPage: false } } } }) }) });
+test('1. relatório registra busca sem oferta e motivos reais sem expor segredos', async t => {
+ const f = fixture(t);
+ assert.equal(emptyReport().status, 'not_started');
+ f.report.beginCycle();
+ const deals = await source([{ ...product, priceDiscountRate: 0 }, { ...product, itemId: 3 }])({ isDeferred: id => id.endsWith(':3'), onSearchSummary: stats => f.report.search(stats) });
+ assert.equal(deals.length, 0);
+ f.report.finishCycle({ status: 'no_offers' });
+ const data = readReport(f.file);
+ assert.equal(data.lastCycle.consulted, 2); assert.equal(data.lastCycle.noDiscount, 1); assert.equal(data.lastCycle.cooldown, 1);
+ assert.equal(data.totals.sent, 0); assert.equal(data.status, 'no_offers');
+ assert.ok(!JSON.stringify(data).includes('SECRET')); assert.ok(!JSON.stringify(data).includes('PRIVATE'));
+});
+test('2. oferta encontrada durante intervalo permanece sem envio e histórico sobrevive ao reinício', async t => {
+ const f = fixture(t); f.report.beginCycle();
+ const deals = await source([product])({ onSearchSummary: stats => f.report.search(stats) });
+ assert.equal(deals.length, 1);
+ f.advance(1000); f.report.finishCycle({ status: 'waiting', nextSendAt: f.now() + 600000 });
+ const saved = readReport(f.file);
+ assert.equal(saved.lastCycle.valid, 1); assert.equal(saved.totals.attempted, 0); assert.equal(saved.totals.sent, 0); assert.equal(saved.status, 'waiting');
+ const resumed = new BotReport(f.file, { now: f.now });
+ assert.equal(resumed.snapshot().totals.cycles, 1); assert.equal(resumed.snapshot().nextSendAt, saved.nextSendAt);
+ resumed.stop(); assert.equal(readReport(f.file).status, 'stopped');
+});
+test('3. painel distingue envio confirmado e incerto e serve apenas arquivos públicos locais', async t => {
+ const f = fixture(t); f.report.beginCycle();
+ const store = new SentStore(path.join(f.dir, 'sent.json'), 86400000, f.now);
+ const send = createBroadcaster({ store, groups: ['A', 'B'], minMs: 1, maxMs: 1, now: f.now, sleep: async () => {}, getSocket: () => ({ sendMessage: async group => { if (group === 'A') throw Object.assign(Error('private details'), { code: 'SEND_TIMEOUT' }); } }), logger: { info() {}, warn() {} }, onResult: event => f.report.event(event) });
+ await send({ id: 'test', title: '<script>alert(1)</script>', price: 30 }, Buffer.from('image'), 'caption');
+ f.report.finishCycle();
+ assert.equal(f.report.snapshot().totals.sent, 1); assert.equal(f.report.snapshot().totals.sendFailures, 1);
+ assert.equal(store.data[store.key('test', 'A')].status, 'pending');
+ assert.equal(f.report.snapshot().activity.find(item => item.type === 'send_failed').reason, 'SEND_TIMEOUT');
+ const server = await startDashboard({ getReport: () => f.report.snapshot(), port: 0, now: f.now }); t.after(server.stop);
+ for (const asset of ['/', '/app.js', '/style.css']) assert.equal((await fetch(server.url + asset)).status, 200);
+ const response = await fetch(server.url + '/api/report'); const body = await response.json();
+ assert.equal(body.totals.sent, 1); assert.equal(body.stale, false); assert.ok(!JSON.stringify(body).includes('private details'));
+ assert.equal((await fetch(server.url + '/.env')).status, 404);
+ assert.equal((await fetch(server.url + '/api/report', { method: 'POST' })).status, 405);
+ const status = await new Promise((resolve, reject) => { const request = http.get(server.url, { headers: { Host: 'external.example' } }, response => { response.resume(); resolve(response.statusCode); }); request.on('error', reject); });
+ assert.equal(status, 403);
+ f.advance(31000); assert.equal((await (await fetch(server.url + '/api/report')).json()).stale, true);
+});

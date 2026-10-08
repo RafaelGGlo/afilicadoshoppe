@@ -4,3 +4,11 @@ data/*.db
 data/*.db-*
 data/images/
 *.log
+
+whatsapp-bot/bot_report.json*
+whatsapp-bot/failed_deals.json*
+whatsapp-bot/send_schedule.json*
+whatsapp-bot/bot_control.json*
+whatsapp-bot/bot-*.log
+
+whatsapp-bot/bot.lock.guard/

@@ -1,0 +1,12 @@
+import 'dotenv/config';
+import { readReport } from './report.js';
+import { BotControl } from './control.js';
+import { startDashboard } from './dashboard-server.js';
+const port = Number(process.env.DASHBOARD_PORT || 3210);
+if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw Error('Invalid DASHBOARD_PORT');
+const control = new BotControl('./bot_control.json', { minMinutes: Number(process.env.SEND_INTERVAL_MIN_MINUTES || 10), maxMinutes: Number(process.env.SEND_INTERVAL_MAX_MINUTES || 15) });
+const dashboard = await startDashboard({ port, getReport: () => { const { paused, minMinutes, maxMinutes } = control.reload(); return { ...readReport('./bot_report.json'), control: { paused, minMinutes, maxMinutes } }; }, onControl: patch => { const { paused, minMinutes, maxMinutes } = control.update(patch); return { paused, minMinutes, maxMinutes }; } });
+console.log('Painel de relatórios: ' + dashboard.url);
+console.log('Este comando abre somente o painel e não inicia envios.');
+process.once('SIGINT', () => { void dashboard.stop(); });
+process.once('SIGTERM', () => { void dashboard.stop(); });

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Radar Shopee · Central de operação</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#overview" aria-label="Radar Shopee, início"><span class="brand-mark">R<span></span></span><span>RADAR<span class="brand-sub">SHOPEE</span></span></a>
+    <div class="nav-label">ACOMPANHAMENTO</div>
+    <nav aria-label="Navegação"><a class="nav-item active" href="#overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Visão geral</a><a class="nav-item" href="#activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Atividade</a></nav>
+    <div class="sidebar-bottom"><div class="local-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div><strong>Seu espaço local</strong><p>Relatórios do bot.<br>Acesso somente neste computador.</p><span class="read-only">CONTROLE LOCAL</span></div>
+  </aside>
+  <main id="overview">
+    <header class="topbar"><div class="breadcrumb">Central de operação<span>/</span><strong>Visão geral</strong></div><div class="top-right"><span class="pulse-dot"></span><span id="syncStatus">Conectando ao painel</span></div></header>
+    <section class="page-heading"><div><p class="eyebrow">TUDO SOB CONTROLE</p><h1>Visão geral</h1><p class="subtitle">Uma visão clara das buscas, dos envios e do ritmo do seu bot.</p></div><button class="button" id="refreshButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17"/></svg>Atualizar</button></section>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <section class="card controls-card" aria-label="Controles do bot">
+      <div class="control-main"><h2>Controle de envios</h2><p id="controlDescription">Buscas continuam durante a pausa.</p><button class="button" id="pauseButton" disabled>Pausar envios</button></div>
+      <form id="intervalForm"><div><label for="minMinutes">Intervalo mínimo (min)</label><input id="minMinutes" type="number" min="1" max="1440" step="1" value="10" required></div><div><label for="maxMinutes">Intervalo máximo (min)</label><input id="maxMinutes" type="number" min="1" max="1440" step="1" value="15" required></div><button class="button" id="saveInterval" type="submit" disabled>Salvar intervalo</button></form>
+      <p class="control-feedback" id="controlFeedback" role="status"></p>
+    </section>
+    <section class="metrics" aria-label="Indicadores acumulados">
+      <article class="card metric"><div class="metric-label">Envios confirmados<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></div><strong id="sentCount">—</strong><span>Mensagens confirmadas pelo WhatsApp</span></article>
+      <article class="card metric"><div class="metric-label">Produtos consultados<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></div><strong id="consultedCount">—</strong><span>Resultados recebidos nas buscas</span></article>
+      <article class="card metric"><div class="metric-label">Produtos descartados<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8Z"/></svg></div><strong id="discardedCount">—</strong><span>Fora dos critérios configurados</span></article>
+      <article class="card metric"><div class="metric-label">Falhas e incertezas<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v.1"/></svg></div><strong id="failureCount">—</strong><span>Preparação, API ou tentativa de envio</span></article>
+    </section>
+    <section class="operation-grid" aria-label="Operação atual">
+      <article class="card next-send"><div class="section-top"><h2>Próximo envio</h2><span class="badge" id="sendState">Aguardando dados</span></div><p class="muted">Tempo restante para a próxima janela</p><div class="countdown" id="countdown">—<span>:</span>—</div><div class="schedule-line"><span id="nextSendText">O horário aparecerá ao iniciar o bot.</span><span class="schedule-time" id="nextSendTime">—</span></div><div class="card-footer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg><span id="sendInterval">Intervalo de 10 a 15 minutos entre tentativas</span></div></article>
+      <article class="card connection-card"><div class="section-top"><h2>Estado do bot</h2><span class="status-pill" id="connectionPill"><i></i>Sem dados</span></div><div class="connection-message"><span class="connection-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v5M16 3v5M5 8h14v3a7 7 0 0 1-14 0ZM12 18v3"/></svg></span><div><strong id="botState">Aguardando o bot</strong><p id="botDetail">O painel não inicia envios por conta própria.</p></div></div><dl class="detail-list"><div><dt>Próxima busca</dt><dd id="nextSearch">—</dd></div><div><dt>Última busca concluída</dt><dd id="lastSearch">—</dd></div><div><dt>Grupos configurados</dt><dd id="groupCount">—</dd></div><div><dt>Categorias</dt><dd id="categories">—</dd></div><div><dt>Repetição bloqueada por</dt><dd id="dedupHours">—</dd></div></dl></article>
+    </section>
+    <section class="search-grid" aria-label="Detalhes da última busca">
+      <article class="card search-card"><div class="section-top"><h2>Última busca</h2><span class="small-label" id="searchDuration">Sem registros</span></div><div class="search-numbers"><div><strong id="lastConsulted">—</strong><span>Consultados</span></div><div><strong id="lastEvaluated">—</strong><span>Avaliados</span></div><div><strong id="lastValid">—</strong><span>Elegíveis</span></div><div><strong id="lastAlreadySent">—</strong><span>Já enviados</span></div></div><p class="search-note" id="searchNote">Os dados serão registrados automaticamente a cada ciclo.</p></article>
+      <article class="card reasons-card"><div class="section-top"><h2>Por que não foram enviados?</h2><span class="small-label">ÚLTIMA BUSCA</span></div><div class="reasons"><div><span>Sem desconto informado</span><strong id="reasonNoDiscount">—</strong></div><div><span>Em espera após falha</span><strong id="reasonCooldown">—</strong></div><div><span>Dados inválidos ou outros filtros</span><strong id="reasonOther">—</strong></div></div></article>
+    </section>
+    <section class="card latest-card"><div class="section-top"><h2>Últimas ofertas encontradas</h2><span class="small-label">ÚLTIMA BUSCA</span></div><div id="latestOffers" class="latest-offers">Aguardando a primeira busca.</div></section>
+    <section class="card activity-card" id="activity"><div class="activity-heading"><div><h2>Atividade recente</h2><p>Ofertas processadas e resultados das tentativas.</p></div><div class="activity-filters"><input id="searchInput" type="search" placeholder="Buscar produto…" aria-label="Buscar produto na atividade"><select id="statusFilter" aria-label="Filtrar atividade por resultado"><option value="all">Todos os resultados</option><option value="sent">Envios confirmados</option><option value="send_failed">Envios incertos</option><option value="preparation_failed">Falhas na preparação</option></select></div></div><div class="table-scroll"><table><thead><tr><th>PRODUTO</th><th>VALOR</th><th>RESULTADO</th><th>GRUPO</th><th>HORÁRIO</th></tr></thead><tbody id="activityBody"></tbody></table></div><div class="empty-state" id="emptyState"><span class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span><strong>Nenhuma atividade registrada</strong><p>Quando o bot processar ofertas, você verá os resultados aqui.</p></div><div class="table-footer"><span id="activityCount">0 registros</span><span>Histórico dos últimos 200 eventos</span></div></section>
+    <footer class="page-footer"><span>RADAR SHOPEE<span class="footer-divider">·</span>Central de operação</span><span>Atualização automática a cada 5 segundos</span></footer>
+  </main>
+</body>
+</html>
