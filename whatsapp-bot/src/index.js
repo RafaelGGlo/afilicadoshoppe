@@ -16,6 +16,7 @@ import { snapshotOfferFilters } from './search-snapshot.js';
 import { requestBotStop } from './dashboard-stop.js';
 import { BotControl } from './control.js';
 import { acquireLock } from './bot-lock.js';
+import { captureInstagramOffers } from './instagram-catalog.js';
 
 const logger = pino({ level: 'info' });
 const lock = './bot.lock';
@@ -84,6 +85,7 @@ try {
      if (!Array.isArray(local)) throw Error('Deals must be an array');
      deals.push(...local); report.search({ consulted: local.length, evaluated: local.length });
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    captureInstagramOffers(deals);
     report.data.latestOffers = deals.slice(0, 5).map(deal => ({ title: String(deal.title || '').slice(0,300), price: Number.isFinite(deal.price) ? deal.price : null }));
     if (!pacing.canSend()) { if (outcome !== 'error') outcome = control.data.paused ? 'paused' : 'waiting'; return; }
     if (!deals.length) { if (outcome !== 'error') outcome = 'no_offers'; return; }
