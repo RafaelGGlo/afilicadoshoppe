@@ -14,3 +14,8 @@ dashboard-*.log
 
 bot_control.json*
 bot.lock.guard/
+
+instagram.sqlite*
+instagram-offers.json*
+instagram-media/
+.instagram-preview/
